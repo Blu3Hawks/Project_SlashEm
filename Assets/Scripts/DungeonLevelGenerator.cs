@@ -58,31 +58,62 @@ public class DungeonLevelGenerator : MonoBehaviour
             int randomSpaceToDivide = Random.Range(0, listOfSpaces.Count);
             Space spaceToCheck = listOfSpaces[randomSpaceToDivide];
 
-            if (CheckForSpaceDivision(spaceToCheck))
+            if (CheckForSpaceDivisionXAxis(spaceToCheck))
             {
                 for (; currentIteration < levelIterations; currentIteration++)
                 {
-
+                    DivideSpaceXAxis(spaceToCheck);
                 }
             }
+
+            else if (CheckForSpaceDivisionYAxis(spaceToCheck))
+            {
+                for (; currentIteration < levelIterations; currentIteration++)
+                {
+                    DivideSpaceYAxis(spaceToCheck);
+                }
+            }
+
             else
             {
                 listOfSpaces.Remove(spaceToCheck);
+                return;
             }
         }
     }
 
-    private bool CheckForSpaceDivision(Space spaceToCheck)
+    private bool CheckForSpaceDivisionXAxis(Space spaceToCheck)
     {
-        return spaceToCheck.Width > (maxRoomWidth + 1) * 2 || spaceToCheck.Length > (maxRoomLength + 1) * 2;
+        return spaceToCheck.Width > (maxRoomWidth + 1) * 2;
     }
 
-    private void DivideSpaceXAxis()
+    private bool CheckForSpaceDivisionYAxis(Space spaceToCheck)
     {
-
+        return spaceToCheck.Length > (maxRoomLength + 1) * 2;
     }
 
-    private void DivideSpaceYAxis()
+    private void DivideSpaceXAxis(Space spaceToDivide)
+    {
+        // take the total width - between the min x value + (max room length + 1) and the max x value - (max room length +1)
+        int newXValue = Random.Range(spaceToDivide.BottomLeftSpaceCorner.x + (maxRoomWidth + 1), spaceToDivide.BottomRightSpaceCorner.x - (maxRoomWidth + 1));
+        //now we create two new spaces - the first one, that will be the left part of the divided space, will be having the bottom left and top left corners,
+        //combined with two new points - the top right would be the top left + the newXValue and the bottom right will be the bottom left + newXValue
+
+        Space newSpaceLeftSide = new Space(spaceToDivide.BottomLeftSpaceCorner, new Vector2Int(spaceToDivide.BottomLeftSpaceCorner.x + newXValue, spaceToDivide.TopLeftSpaceCorner.y));
+
+        //next we will take the other side and make a space out of it - so we will take the middle values, which are the previous space that we have created - we will take its right points
+        //as our left points for the new space, and the right points would be the given space right points. Watch the files to get a better understanding for the divisions.
+
+        //we can use the new space on the left - and take its bottom right point, and the given space's top right point to create this new space. That totally works.
+        Space newSpaceRightSide = new Space(newSpaceLeftSide.BottomRightSpaceCorner, spaceToDivide.TopRightSpaceCorner);
+
+        //now we will add these two spaces to the list, and remove the spaceToDivide
+        listOfSpaces.Add(newSpaceLeftSide);
+        listOfSpaces.Add(newSpaceRightSide);
+        listOfSpaces.Remove(spaceToDivide);
+    }
+
+    private void DivideSpaceYAxis(Space spaceToDivide)
     {
 
     }
