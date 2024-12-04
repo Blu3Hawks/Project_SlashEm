@@ -33,8 +33,6 @@ public class DungeonLevelGenerator : MonoBehaviour
 
     [SerializeField] private GameObject planePrefab;
     private List<Space> spacesToDivide = new List<Space>();
-    private List<Space> spacesToCheck = new List<Space>();
-
     public void GenerateLevel()
     {
         ClearWorld();
@@ -61,7 +59,6 @@ public class DungeonLevelGenerator : MonoBehaviour
         // check a random space to divide until run out of divisions/ iterations or running out of space to divide.
         Space firstSpace = new Space(new Vector2Int(0, 0), new Vector2Int(levelWidth, levelLength));
         spacesToDivide.Add(firstSpace);
-        spacesToCheck.Add(firstSpace);
         int currentIteration = 0;
 
         while (currentIteration < levelIterations && spacesToDivide.Count > 0)
@@ -96,11 +93,24 @@ public class DungeonLevelGenerator : MonoBehaviour
             }
             else
             {
-                return;
+                if()
+                continue;
             }
         }
     }
 
+    private bool CheckAllSpacesForDivision()
+    {
+        List<Space> spacesWithDivision = new List<Space>();
+        foreach(Space space in spacesToDivide)
+        {
+            if(CheckForSpaceDivisionXAxis(space) || CheckForSpaceDivisionYAxis(space))
+            {
+                spacesWithDivision.Add(space);
+            }
+        }
+        return false;
+    }
     private void DivideSpaceXAxis(Space spaceToCheck)
     {
         //first we remove it from the list
