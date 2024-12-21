@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -32,28 +33,118 @@ public class DungeonLevelGenerator : MonoBehaviour
     [Header("List of Room")]
 
     [SerializeField] private GameObject planePrefab;
-    private List<Space> spacesToDivide = new List<Space>();
+    [SerializeField] private GameObject roomPlanePrefab;
+
+    SpaceDivider spaceDivider;
+
+    private List<Room> listOfRooms = new List<Room>();
+
+    public List<Space> spacesToDivide = new List<Space>();
+    public List<Space> spacesToPrint = new List<Space>();
     public void GenerateLevel()
     {
         ClearWorld();
         GenerateRandomLevelValues();
+        spaceDivider = new SpaceDivider(levelWidth, levelLength, levelIterations, maxRoomWidth, maxRoomLength);
         GenerateAllSpaces();
+
         Debug.Log("The width is: " + levelWidth + " and the length is: " + levelLength);
-        foreach (Space space in spacesToDivide)
-        {
-            Debug.Log($"Space: BottomLeft={space.BottomLeftSpaceCorner}, TopRight={space.TopRightSpaceCorner}");
-        }
+
         CreatePlanesForSpaces();
+        CreatePlanesForRooms();
+        Debug.Log(spaceDivider.spacesToPrint.Count.ToString());
     }
 
     private void GenerateRandomLevelValues()
     {
-        levelWidth = Random.Range(minLevelWidth, maxLevelWidth);
-        levelLength = Random.Range(minLevelLength, maxLevelLength);
-        levelIterations = Random.Range(minIterations, maxIterations);
+        levelWidth = UnityEngine.Random.Range(minLevelWidth, maxLevelWidth);
+        levelLength = UnityEngine.Random.Range(minLevelLength, maxLevelLength);
+        levelIterations = UnityEngine.Random.Range(minIterations, maxIterations);
     }
 
-    private void GenerateAllSpaces()
+    private void CreatePlanesForSpaces()
+    {
+        foreach (Space space in spacesToPrint)
+        {
+            if (planePrefab == null)
+            {
+                Debug.LogError("Plane prefab is not assigned!");
+                return;
+            }
+
+            GameObject plane = Instantiate(planePrefab, transform);
+
+            Vector3 position = new Vector3(
+                (space.bottomLeftSpaceCorner.x + space.topRightSpaceCorner.x) / 2f,
+                0,
+                (space.bottomLeftSpaceCorner.y + space.topRightSpaceCorner.y) / 2f
+            );
+
+            Vector3 scale = new Vector3(
+                space.Width / 10f,
+                1,
+                space.Length / 10f
+            );
+
+            plane.transform.position = position;
+            plane.transform.localScale = scale;
+        }
+    }
+
+    private void CreatePlanesForRooms()
+    {
+        foreach (Room room in listOfRooms)
+        {
+            if (planePrefab == null)
+            {
+                Debug.LogError("Plane prefab is not assigned!");
+                return;
+            }
+
+            GameObject plane = Instantiate(roomPlanePrefab, transform);
+            Material material = plane.GetComponent<Material>();
+
+            // material.color = new Color(UnityEngine.Random.Range(0, 255), UnityEngine.Random.Range(0, 255), UnityEngine.Random.Range(0, 255));
+
+            Vector3 position = new Vector3(
+                (room.bottomLeftRoomCorner.x + room.topRightRoomCorner.x) / 2f,
+                1,
+                (room.bottomLeftRoomCorner.y + room.topRightRoomCorner.y) / 2f
+            );
+
+            Vector3 scale = new Vector3(
+                room.Width / 10f,
+                1,
+                room.Length / 10f
+            );
+
+            plane.transform.position = position;
+            plane.transform.localScale = scale;
+        }
+    }
+
+    public void GenerateRoom(Space givenSpace)
+    {
+        int randomRoomWidth = UnityEngine.Random.Range(minRoomWidth, maxRoomLength);
+        int randomRoomLength = UnityEngine.Random.Range(minRoomLength, maxRoomLength);
+
+        Vector2Int newBottomLeftCorner = new Vector2Int(
+            UnityEngine.Random.Range( //this is the random X value of the bottom left corner
+            givenSpace.bottomLeftSpaceCorner.x + 1, givenSpace.bottomRightSpaceCorner.x - 1 - randomRoomWidth),
+            UnityEngine.Random.Range( //this is the random Y value of the bottom left corner
+            givenSpace.bottomLeftSpaceCorner.y + 1, givenSpace.topLeftSpaceCorner.y - 1 - randomRoomLength)
+            );
+        //now we calculate the top right corner
+
+        Vector2Int newTopRightCorner = new Vector2Int(
+            newBottomLeftCorner.x + randomRoomWidth,
+            newBottomLeftCorner.y + randomRoomLength);
+
+        Room newRoom = new Room(newBottomLeftCorner, newTopRightCorner);
+        listOfRooms.Add(newRoom);
+    }
+
+    public void GenerateAllSpaces()
     {
         // getting the firt space here - then dividing it for the amount of iterations, each time creating new spaces, that are on a list - after dividing remove them from the list. each time
         // check a random space to divide until run out of divisions/ iterations or running out of space to divide.
@@ -63,15 +154,13 @@ public class DungeonLevelGenerator : MonoBehaviour
 
         while (currentIteration < levelIterations && spacesToDivide.Count > 0)
         {
-            int randomSpaceToDivide = Random.Range(0, spacesToDivide.Count);
+            int randomSpaceToDivide = UnityEngine.Random.Range(0, spacesToDivide.Count);
             Space spaceToCheck = spacesToDivide[randomSpaceToDivide];
-
-            Debug.Log("A new space has been made: " + spaceToCheck);
 
             if (CheckForSpaceDivisionXAxis(spaceToCheck) && CheckForSpaceDivisionYAxis(spaceToCheck) && spacesToDivide.Contains(spaceToCheck))
             {
                 //if both options are available then I want it to be randomized.
-                if (Random.Range(0, 2) == 0)
+                if (UnityEngine.Random.Range(0, 2) == 0)
                 {
                     DivideSpaceXAxis(spaceToCheck);
                 }
@@ -93,36 +182,38 @@ public class DungeonLevelGenerator : MonoBehaviour
             }
             else
             {
-                if()
+                spacesToDivide.Remove(spaceToCheck);
+                spacesToPrint.Add(spaceToCheck);
                 continue;
             }
         }
+
+
+        //now after the while loop is broken we can add the remaining spaces to the list that we print out - our final spaces
+        foreach (Space space in spacesToDivide)
+        {
+            spacesToPrint.Add(space);
+        }
+
+        foreach (Space space in spacesToPrint)
+        {
+            GenerateRoom(space);
+        }
     }
 
-    private bool CheckAllSpacesForDivision()
-    {
-        List<Space> spacesWithDivision = new List<Space>();
-        foreach(Space space in spacesToDivide)
-        {
-            if(CheckForSpaceDivisionXAxis(space) || CheckForSpaceDivisionYAxis(space))
-            {
-                spacesWithDivision.Add(space);
-            }
-        }
-        return false;
-    }
+
     private void DivideSpaceXAxis(Space spaceToCheck)
     {
         //first we remove it from the list
         spacesToDivide.Remove(spaceToCheck);
         // take the total width - between the min x value + (max room length + 1) and the max x value - (max room length +1)
 
-        int randomXValue = Random.Range(
-            spaceToCheck.BottomLeftSpaceCorner.x + (maxRoomWidth + 1),
-            spaceToCheck.BottomRightSpaceCorner.x - (maxRoomWidth + 1)
+        int randomXValue = UnityEngine.Random.Range(
+            spaceToCheck.bottomLeftSpaceCorner.x + (maxRoomWidth + 1),
+            spaceToCheck.bottomRightSpaceCorner.x - (maxRoomWidth + 1)
             );
 
-        if (randomXValue <= spaceToCheck.BottomLeftSpaceCorner.x || randomXValue >= spaceToCheck.TopRightSpaceCorner.x)
+        if (randomXValue <= spaceToCheck.bottomLeftSpaceCorner.x || randomXValue >= spaceToCheck.topRightSpaceCorner.x)
         {
             Debug.LogWarning("Invalid X-axis division point. Skipping this space.");
             return;
@@ -131,9 +222,9 @@ public class DungeonLevelGenerator : MonoBehaviour
         //combined with two new points - the top right would be the top left + the newXValue and the bottom right will be the bottom left + newXValue
 
         Space newSpaceLeftSide = new Space(
-            spaceToCheck.BottomLeftSpaceCorner,
+            spaceToCheck.bottomLeftSpaceCorner,
             new Vector2Int(randomXValue,
-            spaceToCheck.TopRightSpaceCorner.y)
+            spaceToCheck.topRightSpaceCorner.y)
             );
         //next we will take the other side and make a space out of it - so we will take the middle values, which are the previous space that we have created - we will take its right points
         //as our left points for the new space, and the right points would be the given space right points. Watch the files to get a better understanding for the divisions.
@@ -141,8 +232,8 @@ public class DungeonLevelGenerator : MonoBehaviour
         //we can use the new space on the left - and take its bottom right point, and the given space's top right point to create this new space. That totally works.
 
         Space newSpaceRightSide = new Space(
-            new Vector2Int(randomXValue, spaceToCheck.BottomLeftSpaceCorner.y),
-            spaceToCheck.TopRightSpaceCorner
+            new Vector2Int(randomXValue, spaceToCheck.bottomLeftSpaceCorner.y),
+            spaceToCheck.topRightSpaceCorner
             );
         //now we will add these two spaces to the list
 
@@ -155,12 +246,12 @@ public class DungeonLevelGenerator : MonoBehaviour
         spacesToDivide.Remove(spaceToCheck);
         //take the total length and randomise between the min y value + max room length + 1 and the max y value - (max room length +1)
 
-        int randomYValue = Random.Range(
-            spaceToCheck.BottomLeftSpaceCorner.y + (maxRoomLength + 1),
-            spaceToCheck.TopLeftSpaceCorner.y - (maxRoomWidth + 1)
+        int randomYValue = UnityEngine.Random.Range(
+            spaceToCheck.bottomLeftSpaceCorner.y + (maxRoomLength + 1),
+            spaceToCheck.topLeftSpaceCorner.y - (maxRoomWidth + 1)
             );
 
-        if (randomYValue <= spaceToCheck.BottomLeftSpaceCorner.y || randomYValue >= spaceToCheck.TopRightSpaceCorner.y)
+        if (randomYValue <= spaceToCheck.bottomLeftSpaceCorner.y || randomYValue >= spaceToCheck.topRightSpaceCorner.y)
         {
             Debug.LogWarning("Invalid Y-axis division point. Skipping this space.");
             return;
@@ -171,20 +262,21 @@ public class DungeonLevelGenerator : MonoBehaviour
         //the original bottom left and right corners + the new Y Value given.
 
         Space newSpaceDownSide = new Space(
-            spaceToCheck.BottomLeftSpaceCorner,
-            new Vector2Int(spaceToCheck.BottomRightSpaceCorner.x, randomYValue)
+            spaceToCheck.bottomLeftSpaceCorner,
+            new Vector2Int(spaceToCheck.bottomRightSpaceCorner.x, randomYValue)
             );
         //now we do the same with the new space at the bottom
 
         Space newSpaceUpSide = new Space(
-            newSpaceDownSide.TopLeftSpaceCorner,
-            spaceToCheck.TopRightSpaceCorner
+            newSpaceDownSide.topLeftSpaceCorner,
+            spaceToCheck.topRightSpaceCorner
             );
         //now we will add these two spaces to the list
 
         spacesToDivide.Add(newSpaceUpSide);
         spacesToDivide.Add(newSpaceDownSide);
     }
+
 
     private bool CheckForSpaceDivisionXAxis(Space spaceToCheck)
     {
@@ -196,39 +288,9 @@ public class DungeonLevelGenerator : MonoBehaviour
         return spaceToCheck.Length > (maxRoomLength + 1) * 2;
     }
 
-
-
-    private void CreatePlanesForSpaces()
-    {
-        foreach (Space space in spacesToDivide)
-        {
-            if (planePrefab == null)
-            {
-                Debug.LogError("Plane prefab is not assigned!");
-                return;
-            }
-
-            GameObject plane = Instantiate(planePrefab, transform);
-
-            Vector3 position = new Vector3(
-                (space.BottomLeftSpaceCorner.x + space.TopRightSpaceCorner.x) / 2f,
-                0,
-                (space.BottomLeftSpaceCorner.y + space.TopRightSpaceCorner.y) / 2f
-            );
-
-            Vector3 scale = new Vector3(
-                space.Width / 10f,
-                1,
-                space.Length / 10f
-            );
-
-            plane.transform.position = position;
-            plane.transform.localScale = scale;
-        }
-    }
-
     private void ClearWorld()
     {
+        Console.Clear();
         while (transform.childCount != 0)
         {
             foreach (Transform item in transform)
@@ -237,5 +299,7 @@ public class DungeonLevelGenerator : MonoBehaviour
             }
         }
         spacesToDivide.Clear();
+        spacesToPrint.Clear();
+        listOfRooms.Clear();
     }
 }
